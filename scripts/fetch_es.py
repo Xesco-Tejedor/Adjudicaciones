@@ -81,23 +81,41 @@ def main():
             for r in old.get('rows', []): prev[r['id']] = r
             last = datetime.fromisoformat(old['fetchedAt'])
         except Exception as ex: print('prev unreadable', ex, file=sys.stderr)
-    cutoff = (last - timedelta(days=2)) if last else now - timedelta(days=BACKFILL_DAYS)
+    state = old.get('state', {}) if last else {}
+    deadline = time.time() + int(os.environ.get('BUDGET_MIN', '40')) * 60
+    head_cut = (last - timedelta(days=2)) if last else now - timedelta(days=2)
+    back_cut = now - timedelta(days=BACKFILL_DAYS)
     stats = {}
+    def walk(url, cut):
+        """returns pages, rows, next unvisited url (None if finished), reached cut"""
+        pages = 0; got = 0
+        while url and time.time() < deadline:
+            root = ET.fromstring(get(url)); pages += 1
+            rows, oldest = parse(root, cut)
+            for r in rows:
+                if r['id'] not in prev or r['updated'] >= prev[r['id']]['updated']: prev[r['id']] = r
+            got += len(rows)
+            nxt = next((l.get('href') for l in root.findall('a:link', NS) if l.get('rel') == 'next'), None)
+            nxt = nxt.replace('contrataciondelestado.es', 'contrataciondelsectorpublico.gob.es') if nxt else None
+            if oldest is None or oldest < cut: return pages, got, nxt, True
+            url = nxt
+        return pages, got, url, False
+    ok = True
     for feed in FEEDS:
-        url = feed; pages = 0; got = 0
+        st = state.setdefault(feed, {})
         try:
-            while url and pages < MAX_PAGES:
-                root = ET.fromstring(get(url)); pages += 1
-                rows, oldest = parse(root, cutoff)
-                for r in rows: prev[r['id']] = r if r['id'] not in prev or r['updated'] >= prev[r['id']]['updated'] else prev[r['id']]
-                got += len(rows)
-                nxt = next((l.get('href') for l in root.findall('a:link', NS) if l.get('rel') == 'next'), None)
-                if oldest is None or oldest < cutoff: break
-                url = nxt.replace('contrataciondelestado.es', 'contrataciondelsectorpublico.gob.es') if nxt else None
-            stats[feed] = {'pages': pages, 'rows': got}
+            pa, ga, nxt, hit = walk(feed, head_cut)
+            stats[feed] = {'head_pages': pa, 'head_rows': ga, 'head_complete': hit}
+            if not hit: ok = False
+            if hit and 'resume' not in st and not st.get('done'): st['resume'] = nxt
+            if st.get('resume') and not st.get('done'):
+                pb, gb, nxt2, hit2 = walk(st['resume'], back_cut)
+                stats[feed].update({'back_pages': pb, 'back_rows': gb})
+                if hit2 or nxt2 is None: st['done'] = True; st['resume'] = None
+                else: st['resume'] = nxt2
+            stats[feed]['backfill_done'] = bool(st.get('done'))
         except Exception as ex:
-            stats[feed] = {'pages': pages, 'rows': got, 'error': str(ex)}
-            print('feed failed', feed, ex, file=sys.stderr)
+            ok = False; stats[feed] = {'error': str(ex)}; print('feed failed', feed, ex, file=sys.stderr)
     keep_from = (now - timedelta(days=KEEP_DAYS)).strftime('%Y-%m-%d')
     seen = {}
     for r in prev.values():
@@ -106,8 +124,7 @@ def main():
     prev = {r['id']: r for r in seen.values()}
     rows = sorted((r for r in prev.values() if r['data_publicacio_adjudicacio'] >= keep_from), key=lambda r: r['data_publicacio_adjudicacio'], reverse=True)
     if not rows and not prev: sys.exit('no data, not overwriting')
-    ok = all('error' not in s for s in stats.values())
-    out = {'fetchedAt': (now.isoformat() if ok else (last.isoformat() if last else now.isoformat())), 'checkedAt': now.isoformat(), 'stats': stats, 'rows': rows}
+    out = {'fetchedAt': (now.isoformat() if ok else (last.isoformat() if last else now.isoformat())), 'checkedAt': now.isoformat(), 'stats': stats, 'state': state, 'rows': rows}
     p.write_text(json.dumps(out, ensure_ascii=False), encoding='utf-8')
     print(json.dumps({'rows': len(rows), 'stats': stats}))
 main()
