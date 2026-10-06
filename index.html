@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Adjudicaciones · cultura y archivos</title>
+<style>
+:root{--bg:#0d0f14;--card:#171a23;--card2:#1e2230;--line:#2a2f42;--tx:#e9ecf5;--mut:#98a0b8;--a:#ffb020;--b:#4de1c1;--c:#7c8cff;--r:#ff6b8b}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1d2140 0,transparent 60%),radial-gradient(900px 500px at 100% 0,#2a1a38 0,transparent 55%),var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+header{padding:22px 16px 8px;max-width:1100px;margin:auto}
+h1{margin:0;font-size:26px;letter-spacing:-.5px;background:linear-gradient(90deg,var(--a),var(--r),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mut);margin:4px 0 0;font-size:13px}
+main{max-width:1100px;margin:auto;padding:8px 16px 60px}
+nav{display:flex;gap:6px;margin:14px 0;flex-wrap:wrap}
+nav button{flex:1;min-width:110px}
+button,select,input,textarea{font:inherit;color:var(--tx);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+button{cursor:pointer;transition:transform .15s,background .2s,border-color .2s}
+button:hover{transform:translateY(-1px);border-color:var(--c)}
+button.on{background:linear-gradient(135deg,var(--a),var(--r));color:#14110a;border-color:transparent;font-weight:700}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1;min-width:130px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{flex:none;border-radius:99px;padding:6px 12px;font-size:13px}
+.chip.on{background:var(--b);color:#06201a;border-color:transparent;font-weight:700}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:10px;animation:in .35s both;border-left:4px solid var(--c)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.item h3{margin:0 0 4px;font-size:15px}
+.meta{color:var(--mut);font-size:12.5px}
+.amt{color:var(--a);font-weight:700}
+.co{color:var(--b);font-weight:700}
+.tag{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--card2);border:1px solid var(--line);margin:2px 4px 0 0;color:var(--mut)}
+.st-Pendiente{border-left-color:var(--mut)}.st-Interesante{border-left-color:var(--a)}.st-Contactada{border-left-color:var(--b)}.st-Descartada{border-left-color:var(--r);opacity:.65}
+a{color:var(--c)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(--card2);border-radius:12px;padding:10px;text-align:center}.stat b{display:block;font-size:20px;color:var(--a)}
+.note{font-size:12.5px;color:var(--mut)}
+.warn{color:var(--a)}
+.hide{display:none}
+details summary{cursor:pointer;color:var(--c);font-size:13px;margin-top:6px}
+.cl{margin-top:8px;padding-left:16px;font-size:13px}
+textarea{width:100%;min-height:54px;margin-top:8px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--a);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media print{body{background:#fff;color:#000}nav,.panel.noprint,button{display:none}.item{border:1px solid #999;background:#fff}.meta,.note{color:#333}.co,.amt{color:#000}}
+</style>
+</head>
+<body>
+<header>
+<h1>Adjudicaciones · cultura y archivos</h1>
+<p class="sub">Contratos adjudicados de verdad, publicados por la contratación pública de Catalunya. Solo informa: tú decides a quién escribir.</p>
+</header>
+<main>
+<nav>
+<button id="t-search" class="on">Adjudicaciones</button>
+<button id="t-cos">Empresas</button>
+<button id="t-saved">Guardadas <span id="nsaved"></span></button>
+</nav>
+
+<section id="v-search">
+<div class="panel noprint">
+<div class="row">
+<select id="period"><option value="30">Últimos 30 días</option><option value="90" selected>Últimos 90 días</option><option value="180">Últimos 6 meses</option><option value="365">Último año</option></select>
+<input id="q" placeholder="Palabra en el objeto (opcional)">
+<input id="minamt" type="number" min="0" step="1000" placeholder="Importe mínimo €">
+<button id="go" class="on">Buscar</button>
+</div>
+<div class="chips" id="topics"></div>
+<p class="note" style="margin:10px 0 0">Los temas combinan códigos CPV y palabras del título. Si no marcas ninguno se usan todos.</p>
+</div>
+<div id="status" class="note"></div>
+<div class="stats" id="stats"></div>
+<div id="list"></div>
+</section>
+
+<section id="v-cos" class="hide">
+<div class="panel noprint"><div class="row"><input id="coq" placeholder="Filtrar empresa o NIF"><select id="cosort"><option value="n">Más contratos</option><option value="t">Mayor importe total</option><option value="a">A-Z</option></select></div>
+<p class="note" style="margin:8px 0 0">Empresas agrupadas a partir de la búsqueda actual. Guarda las que te interesen.</p></div>
+<div id="colist"></div>
+</section>
+
+<section id="v-saved" class="hide">
+<div class="panel noprint">
+<div class="row"><select id="stf"><option value="">Todos los estados</option><option>Pendiente</option><option>Interesante</option><option>Contactada</option><option>Descartada</option></select>
+<input id="tagf" placeholder="Filtrar por etiqueta"></div>
+<div class="row" style="margin-top:8px"><button id="exp-csv">Exportar CSV</button><button id="exp-json">Copia de seguridad</button><button id="imp">Importar copia</button><button id="prt">Imprimir informe</button><input type="file" id="file" accept=".json" class="hide"></div>
+<p class="note" style="margin:8px 0 0">Tu lista se guarda solo en este navegador. Haz una copia de seguridad de vez en cuando: si borras los datos del navegador, se pierde.</p></div>
+<div id="svlist"></div>
+</section>
+
+<p class="note" style="margin-top:24px">Fuente: Contractació pública de Catalunya, datos abiertos (Generalitat de Catalunya, analisi.transparenciacatalunya.cat), conjunto «Contractació pública a Catalunya: publicacions a la Plataforma de serveis de contractació pública». Los datos se piden en directo a la fuente cada vez que buscas. No incluye todavía la Plataforma de Contratación del Sector Público estatal ni contratos fuera de Catalunya. Una empresa adjudicataria puede no ser quien contrata personal: comprueba siempre el pliego y la fuente.</p>
+</main>
+<script>
+const API='https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json';
+const TOPICS={
+ arx:{n:'Archivo y gestión documental',cpv:['79131','72512','79995','92512','72268'],kw:['ARXIU','ARCHIV','GESTIÓ DOCUMENTAL','GESTIÓN DOCUMENTAL']},
+ dig:{n:'Digitalización',cpv:['79999','72314'],kw:['DIGITALITZ','DIGITALIZ','ESCANEIG','ESCANEO']},
+ bib:{n:'Bibliotecas y catálogos',cpv:['92511'],kw:['CATALOGACI','GESTIÓ BIBLIOTEC','GESTIÓN BIBLIOTEC','SISTEMA DE GESTIÓ DE BIBLIOTEC','BIBLIOTECARI']},
+ mus:{n:'Museos y patrimonio',cpv:['92521','92522','92520','92510'],kw:['MUSEU','MUSEO','PATRIMONI CULTURAL','PATRIMONIO CULTURAL','COL·LECCI','COLECCIÓN']},
+ sof:{n:'Software documental / preservación',cpv:[],kw:['PRESERVACI','CONSERVACI DIGITAL','REPOSITORI','REPOSITORIO','METADADES','METADATOS','DIGITAL HERITAGE']}
+};
+const STAT=['Pendiente','Interesante','Contactada','Descartada'];
+let on=new Set(Object.keys(TOPICS)),rows=[],cos=[];
+let saved=JSON.parse(localStorage.getItem('adj_saved')||'{}');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>n==null||isNaN(n)?'—':Number(n).toLocaleString('es-ES',{maximumFractionDigits:0})+' €';
+const persist=()=>{localStorage.setItem('adj_saved',JSON.stringify(saved));$('nsaved').textContent=Object.keys(saved).length?'('+Object.keys(saved).length+')':''};
+const sq=s=>s.replace(/'/g,"''");
+function drawTopics(){ $('topics').innerHTML=Object.entries(TOPICS).map(([k,t])=>`<button class="chip ${on.has(k)?'on':''}" data-k="${k}">${t.n}</button>`).join('');
+ $('topics').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;on.has(k)?on.delete(k):on.add(k);drawTopics()}) }
+function topicsOf(r){const cpv=r.codi_cpv||'',t=((r.denominacio||'')+' '+(r.descripcio_lot||'')).toUpperCase();
+ return Object.entries(TOPICS).filter(([k,x])=>x.cpv.some(c=>cpv.includes(c))||x.kw.some(w=>t.includes(w))).map(([k])=>k)}
+async function search(){
+ const keys=on.size?[...on]:Object.keys(TOPICS);
+ const days=+$('period').value,since=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
+ const conds=[];
+ keys.forEach(k=>{const t=TOPICS[k];t.cpv.forEach(c=>conds.push(`codi_cpv like '%${c}%'`));t.kw.forEach(w=>conds.push(`upper(denominacio) like '%${sq(w)}%'`))});
+ let where=`data_publicacio_adjudicacio>'${since}' AND denominacio_adjudicatari IS NOT NULL AND (${conds.join(' OR ')})`;
+ const q=$('q').value.trim();if(q)where+=` AND upper(denominacio) like '%${sq(q.toUpperCase())}%'`;
+ const min=+$('minamt').value;if(min>0)where+=` AND import_adjudicacio_sense>=${min}`;
+ const p=new URLSearchParams({'$select':'data_publicacio_adjudicacio,nom_organ,denominacio,descripcio_lot,codi_cpv,denominacio_adjudicatari,identificacio_adjudicatari,import_adjudicacio_sense,enllac_publicacio,codi_expedient,tipus_contracte,es_agregada','$where':where,'$order':'data_publicacio_adjudicacio DESC','$limit':'1500'});
+ $('status').innerHTML='<span class="spin"></span>Consultando la fuente…';$('list').innerHTML='';$('stats').innerHTML='';
+ try{const r=await fetch(API+'?'+p);if(!r.ok)throw new Error('Error '+r.status);rows=(await r.json()).filter(x=>x.es_agregada!=='SÍ');}
+ catch(e){$('status').innerHTML='<span class="warn">No se pudo consultar la fuente ('+esc(e.message)+'). Inténtalo de nuevo; no se ha inventado nada.</span>';return}
+ rows.forEach(r=>{r._t=topicsOf(r);r._a=+r.import_adjudicacio_sense||null});
+ buildCos();draw();
+ $('status').textContent=rows.length+' adjudicaciones'+(rows.length>=1500?' (mostrando las 1.500 más recientes; acota la búsqueda)':'')+' desde '+since+'.';
+}
+function coKey(r){return (r.identificacio_adjudicatari||r.denominacio_adjudicatari||'').trim().toUpperCase()}
+function buildCos(){const m={};rows.forEach(r=>{const k=coKey(r);if(!k)return;const c=m[k]||(m[k]={k,name:r.denominacio_adjudicatari,nif:r.identificacio_adjudicatari||'',n:0,t:0,items:[]});c.n++;c.t+=r._a||0;c.items.push(r)});cos=Object.values(m)}
+function contract(r){return `<div class="item"><h3>${esc(r.denominacio)}</h3>
+<div class="meta">${esc((r.data_publicacio_adjudicacio||'').slice(0,10))} · ${esc(r.nom_organ)} · ${esc(r.tipus_contracte||'')}</div>
+<div style="margin-top:6px"><span class="co">${esc(r.denominacio_adjudicatari)}</span> <span class="meta">${esc(r.identificacio_adjudicatari||'')}</span> · <span class="amt">${eur(r._a)}</span> <span class="meta">sin IVA</span></div>
+<div>${(r._t||[]).map(k=>`<span class="tag">${TOPICS[k].n}</span>`).join('')}${r.codi_cpv?`<span class="tag">CPV ${esc(r.codi_cpv.split('||')[0])}</span>`:''}</div>
+<div class="row" style="margin-top:8px"><button data-save="${esc(coKey(r))}">${saved[coKey(r)]?'★ Guardada':'☆ Guardar empresa'}</button>${r.enllac_publicacio?.url?`<a class="meta" style="flex:none" href="${esc(r.enllac_publicacio.url)}" target="_blank" rel="noopener">Ver publicación oficial ↗</a>`:''}</div></div>`}
+function draw(){
+ const tot=rows.reduce((s,r)=>s+(r._a||0),0);
+ $('stats').innerHTML=`<div class="stat"><b>${rows.length}</b>adjudicaciones</div><div class="stat"><b>${cos.length}</b>empresas</div><div class="stat"><b>${eur(tot)}</b>importe sin IVA</div>`;
+ $('list').innerHTML=rows.map(contract).join('');wire($('list'));drawCos()}
+function drawCos(){
+ const f=$('coq').value.trim().toUpperCase(),s=$('cosort').value;
+ let l=cos.filter(c=>!f||c.name.toUpperCase().includes(f)||c.k.includes(f));
+ l.sort((a,b)=>s==='t'?b.t-a.t:s==='a'?a.name.localeCompare(b.name):b.n-a.n);
+ $('colist').innerHTML=l.length?l.slice(0,300).map(c=>`<div class="item"><h3 class="co">${esc(c.name)}</h3><div class="meta">${esc(c.nif)} · ${c.n} contrato${c.n>1?'s':''} · <span class="amt">${eur(c.t)}</span></div>
+ <details><summary>Ver contratos</summary><ul class="cl">${c.items.map(r=>`<li>${esc((r.data_publicacio_adjudicacio||'').slice(0,10))} · ${esc(r.nom_organ)} · ${esc((r.denominacio||'').slice(0,110))} · ${eur(r._a)} ${r.enllac_publicacio?.url?`<a href="${esc(r.enllac_publicacio.url)}" target="_blank" rel="noopener">↗</a>`:''}</li>`).join('')}</ul></details>
+ <div class="row" style="margin-top:8px"><button data-save="${esc(c.k)}">${saved[c.k]?'★ Guardada':'☆ Guardar empresa'}</button></div></div>`).join(''):'<p class="note">Haz una búsqueda primero.</p>';
+ wire($('colist'))}
+function wire(el){el.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>{const k=b.dataset.save;
+ if(saved[k]){delete saved[k]}else{const c=cos.find(x=>x.k===k);if(!c)return;
+  saved[k]={name:c.name,nif:c.nif,status:'Pendiente',tags:'',note:'',added:new Date().toISOString().slice(0,10),contracts:c.items.map(r=>({d:(r.data_publicacio_adjudicacio||'').slice(0,10),o:r.nom_organ,t:r.denominacio,a:r._a,u:r.enllac_publicacio?.url||''}))}}
+ persist();draw();drawSaved()})}
+function drawSaved(){
+ const sf=$('stf').value,tf=$('tagf').value.trim().toLowerCase();
+ const l=Object.entries(saved).filter(([k,c])=>(!sf||c.status===sf)&&(!tf||c.tags.toLowerCase().includes(tf)));
+ $('svlist').innerHTML=l.length?l.map(([k,c])=>{const tot=c.contracts.reduce((s,x)=>s+(x.a||0),0);return `<div class="item st-${c.status}"><h3 class="co">${esc(c.name)}</h3><div class="meta">${esc(c.nif)} · guardada ${esc(c.added)} · ${c.contracts.length} contrato(s) · <span class="amt">${eur(tot)}</span></div>
+ <div class="row" style="margin-top:8px"><select data-st="${esc(k)}">${STAT.map(s=>`<option ${s===c.status?'selected':''}>${s}</option>`).join('')}</select><input data-tg="${esc(k)}" placeholder="Etiquetas (coma)" value="${esc(c.tags)}"><button data-rm="${esc(k)}">Quitar</button></div>
+ <textarea data-nt="${esc(k)}" placeholder="Notas: decisor, cómo contactar, idea…">${esc(c.note)}</textarea>
+ <details><summary>Contratos</summary><ul class="cl">${c.contracts.map(x=>`<li>${esc(x.d)} · ${esc(x.o)} · ${esc((x.t||'').slice(0,110))} · ${eur(x.a)} ${x.u?`<a href="${esc(x.u)}" target="_blank" rel="noopener">↗</a>`:''}</li>`).join('')}</ul></details></div>`}).join(''):'<p class="note">Aún no hay empresas guardadas.</p>';
+ $('svlist').querySelectorAll('[data-st]').forEach(e=>e.onchange=()=>{saved[e.dataset.st].status=e.value;persist();drawSaved()});
+ $('svlist').querySelectorAll('[data-tg]').forEach(e=>e.onchange=()=>{saved[e.dataset.tg].tags=e.value;persist()});
+ $('svlist').querySelectorAll('[data-nt]').forEach(e=>e.onchange=()=>{saved[e.dataset.nt].note=e.value;persist()});
+ $('svlist').querySelectorAll('[data-rm]').forEach(e=>e.onclick=()=>{if(confirm('¿Quitar esta empresa de tu lista?')){delete saved[e.dataset.rm];persist();drawSaved();draw()}})}
+function dl(name,txt,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;a.click()}
+$('exp-csv').onclick=()=>{const q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';const h=['Empresa','NIF','Estado','Etiquetas','Notas','Contratos','Importe total sin IVA','Último enlace'];
+ const l=Object.values(saved).map(c=>[c.name,c.nif,c.status,c.tags,c.note,c.contracts.length,c.contracts.reduce((s,x)=>s+(x.a||0),0),c.contracts[0]?.u||''].map(q).join(','));
+ dl('empresas-guardadas.csv','\ufeff'+[h.map(q).join(','),...l].join('\n'),'text/csv')};
+$('exp-json').onclick=()=>dl('copia-adjudicaciones.json',JSON.stringify(saved,null,1),'application/json');
+$('imp').onclick=()=>$('file').click();
+$('file').onchange=async e=>{try{const o=JSON.parse(await e.target.files[0].text());if(typeof o!=='object'||Array.isArray(o))throw 0;Object.assign(saved,o);persist();drawSaved();alert('Copia importada.')}catch{alert('Archivo no válido.')}};
+$('prt').onclick=()=>{const w=['saved'];show('saved');window.print()};
+function show(v){['search','cos','saved'].forEach(k=>{$('v-'+k).classList.toggle('hide',k!==v);$('t-'+k).classList.toggle('on',k===v)});if(v==='saved')drawSaved()}
+['search','cos','saved'].forEach(k=>$('t-'+k).onclick=()=>show(k));
+$('go').onclick=search;$('q').onkeydown=e=>{if(e.key==='Enter')search()};
+$('coq').oninput=drawCos;$('cosort').onchange=drawCos;$('stf').onchange=drawSaved;$('tagf').oninput=drawSaved;
+drawTopics();persist();search();
+</script>
+</body>
+</html>
