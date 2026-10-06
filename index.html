@@ -61,6 +61,7 @@ textarea{width:100%;min-height:54px;margin-top:8px}
 <section id="v-search">
 <div class="panel noprint">
 <div class="row">
+<select id="src"><option value="all" selected>Catalunya + España</option><option value="cat">Solo Catalunya</option><option value="es">Solo España (estatal y CCAA)</option></select>
 <select id="period"><option value="30">Últimos 30 días</option><option value="90" selected>Últimos 90 días</option><option value="180">Últimos 6 meses</option><option value="365">Último año</option></select>
 <input id="q" placeholder="Palabra en el objeto (opcional)">
 <input id="minamt" type="number" min="0" step="1000" placeholder="Importe mínimo €">
@@ -89,7 +90,7 @@ textarea{width:100%;min-height:54px;margin-top:8px}
 <div id="svlist"></div>
 </section>
 
-<p class="note" style="margin-top:24px">Fuente: Contractació pública de Catalunya, datos abiertos (Generalitat de Catalunya, analisi.transparenciacatalunya.cat), conjunto «Contractació pública a Catalunya: publicacions a la Plataforma de serveis de contractació pública». Los datos se piden en directo a la fuente cada vez que buscas. No incluye todavía la Plataforma de Contratación del Sector Público estatal ni contratos fuera de Catalunya. Una empresa adjudicataria puede no ser quien contrata personal: comprueba siempre el pliego y la fuente.</p>
+<p class="note" style="margin-top:24px">Fuente: Contractació pública de Catalunya, datos abiertos (Generalitat de Catalunya, analisi.transparenciacatalunya.cat), conjunto «Contractació pública a Catalunya: publicacions a la Plataforma de serveis de contractació pública». Los datos se piden en directo a la fuente cada vez que buscas. España: Plataforma de Contratación del Sector Público (feeds Atom oficiales, solo adjudicados o formalizados, filtrados por CPV y palabras clave; se actualizan cada hora y empiezan hace unos 60 días). Puede haber contratos que la plataforma publique con retraso o sin CPV de este ámbito. Una empresa adjudicataria puede no ser quien contrata personal: comprueba siempre el pliego y la fuente.</p>
 </main>
 <script>
 const API='https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json';
@@ -110,8 +111,9 @@ const persist=()=>{localStorage.setItem('adj_saved',JSON.stringify(saved));$('ns
 const sq=s=>s.replace(/'/g,"''");
 function drawTopics(){ $('topics').innerHTML=Object.entries(TOPICS).map(([k,t])=>`<button class="chip ${on.has(k)?'on':''}" data-k="${k}">${t.n}</button>`).join('');
  $('topics').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;on.has(k)?on.delete(k):on.add(k);drawTopics()}) }
+const XTRA={arx:{cpv:['48311','48312'],kw:['HEMEROTECA','FONDO DOCUMENTAL','FONS DOCUMENTAL']},bib:{cpv:[],kw:['BIBLIOTEC']},mus:{cpv:['92500'],kw:['MUSEO','MUSEU']}};
 function topicsOf(r){const cpv=r.codi_cpv||'',t=((r.denominacio||'')+' '+(r.descripcio_lot||'')).toUpperCase();
- return Object.entries(TOPICS).filter(([k,x])=>x.cpv.some(c=>cpv.includes(c))||x.kw.some(w=>t.includes(w))).map(([k])=>k)}
+ return Object.entries(TOPICS).filter(([k,x])=>{const y=r.font==='ES'?XTRA[k]:null;return x.cpv.some(c=>cpv.includes(c))||x.kw.some(w=>t.includes(w))||(y&&(y.cpv.some(c=>cpv.includes(c))||y.kw.some(w=>t.includes(w))))}).map(([k])=>k)}
 async function search(){
  const keys=on.size?[...on]:Object.keys(TOPICS);
  const days=+$('period').value,since=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
@@ -122,16 +124,24 @@ async function search(){
  const min=+$('minamt').value;if(min>0)where+=` AND import_adjudicacio_sense>=${min}`;
  const p=new URLSearchParams({'$select':'data_publicacio_adjudicacio,nom_organ,denominacio,descripcio_lot,codi_cpv,denominacio_adjudicatari,identificacio_adjudicatari,import_adjudicacio_sense,enllac_publicacio,codi_expedient,tipus_contracte,es_agregada','$where':where,'$order':'data_publicacio_adjudicacio DESC','$limit':'1500'});
  $('status').innerHTML='<span class="spin"></span>Consultando la fuente…';$('list').innerHTML='';$('stats').innerHTML='';
- try{const r=await fetch(API+'?'+p);if(!r.ok)throw new Error('Error '+r.status);rows=(await r.json()).filter(x=>x.es_agregada!=='SÍ');}
- catch(e){$('status').innerHTML='<span class="warn">No se pudo consultar la fuente ('+esc(e.message)+'). Inténtalo de nuevo; no se ha inventado nada.</span>';return}
+ const src=$('src').value;let cat=[],es=[],notes=[],esAt='';
+ if(src!=='es'){try{const r=await fetch(API+'?'+p);if(!r.ok)throw new Error('Error '+r.status);cat=(await r.json()).filter(x=>x.es_agregada!=='SÍ');cat.forEach(x=>x.font='CAT')}
+  catch(e){if(src==='cat'){$('status').innerHTML='<span class="warn">No se pudo consultar la fuente de Catalunya ('+esc(e.message)+'). Inténtalo de nuevo; no se ha inventado nada.</span>';return}notes.push('Catalunya no respondió ('+e.message+')')}}
+ if(src!=='cat'){try{const r=await fetch('data/es.json?'+Math.floor(Date.now()/60000));if(!r.ok)throw new Error('Error '+r.status);const d=await r.json();esAt=d.fetchedAt||'';
+   const qq=q.toUpperCase();es=d.rows.filter(x=>x.data_publicacio_adjudicacio>since&&(!min||(+x.import_adjudicacio_sense||0)>=min)&&(!qq||(x.denominacio||'').toUpperCase().includes(qq)));
+   es.forEach(x=>x._t=topicsOf(x));es=es.filter(x=>x._t.some(k=>keys.includes(k)))}
+  catch(e){if(src==='es'){$('status').innerHTML='<span class="warn">No se pudieron cargar los datos de España ('+esc(e.message)+'). Se actualizan cada hora; inténtalo más tarde. No se ha inventado nada.</span>';return}notes.push('España no disponible ('+e.message+')')}}
+ const seen=new Set(cat.map(x=>(x.codi_expedient||'')+'|'+(x.identificacio_adjudicatari||'')));
+ es=es.filter(x=>!seen.has((x.codi_expedient||'')+'|'+(x.identificacio_adjudicatari||'')));
+ rows=cat.concat(es).sort((a,b)=>(b.data_publicacio_adjudicacio||'').localeCompare(a.data_publicacio_adjudicacio||''));
  rows.forEach(r=>{r._t=topicsOf(r);r._a=+r.import_adjudicacio_sense||null});
  buildCos();draw();
- $('status').textContent=rows.length+' adjudicaciones'+(rows.length>=1500?' (mostrando las 1.500 más recientes; acota la búsqueda)':'')+' desde '+since+'.';
+ $('status').innerHTML=esc(rows.length+' adjudicaciones ('+cat.length+' Catalunya, '+es.length+' España)'+(cat.length>=1500?' · Catalunya limitada a las 1.500 más recientes':'')+' desde '+since+'.'+(esAt?' Datos de España actualizados '+esAt.slice(0,16).replace('T',' ')+' UTC.':''))+notes.map(n=>' <span class="warn">'+esc(n)+'.</span>').join('');
 }
 function coKey(r){return (r.identificacio_adjudicatari||r.denominacio_adjudicatari||'').trim().toUpperCase()}
 function buildCos(){const m={};rows.forEach(r=>{const k=coKey(r);if(!k)return;const c=m[k]||(m[k]={k,name:r.denominacio_adjudicatari,nif:r.identificacio_adjudicatari||'',n:0,t:0,items:[]});c.n++;c.t+=r._a||0;c.items.push(r)});cos=Object.values(m)}
 function contract(r){return `<div class="item"><h3>${esc(r.denominacio)}</h3>
-<div class="meta">${esc((r.data_publicacio_adjudicacio||'').slice(0,10))} · ${esc(r.nom_organ)} · ${esc(r.tipus_contracte||'')}</div>
+<div class="meta">${esc((r.data_publicacio_adjudicacio||'').slice(0,10))} · ${esc(r.nom_organ)} · ${esc(r.tipus_contracte||'')}${r.font==='ES'?' · Plataforma estatal · '+esc(r.estat||''):' · Catalunya'}</div>
 <div style="margin-top:6px"><span class="co">${esc(r.denominacio_adjudicatari)}</span> <span class="meta">${esc(r.identificacio_adjudicatari||'')}</span> · <span class="amt">${eur(r._a)}</span> <span class="meta">sin IVA</span></div>
 <div>${(r._t||[]).map(k=>`<span class="tag">${TOPICS[k].n}</span>`).join('')}${r.codi_cpv?`<span class="tag">CPV ${esc(r.codi_cpv.split('||')[0])}</span>`:''}</div>
 <div class="row" style="margin-top:8px"><button data-save="${esc(coKey(r))}">${saved[coKey(r)]?'★ Guardada':'☆ Guardar empresa'}</button>${r.enllac_publicacio?.url?`<a class="meta" style="flex:none" href="${esc(r.enllac_publicacio.url)}" target="_blank" rel="noopener">Ver publicación oficial ↗</a>`:''}</div></div>`}
