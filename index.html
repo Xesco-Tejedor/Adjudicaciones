@@ -90,12 +90,13 @@ textarea{width:100%;min-height:54px;margin-top:8px}
 <div id="svlist"></div>
 </section>
 
-<p class="note" style="margin-top:24px">Fuente: Contractació pública de Catalunya, datos abiertos (Generalitat de Catalunya, analisi.transparenciacatalunya.cat), conjunto «Contractació pública a Catalunya: publicacions a la Plataforma de serveis de contractació pública». Los datos se piden en directo a la fuente cada vez que buscas. España: Plataforma de Contratación del Sector Público (feeds Atom oficiales, solo adjudicados o formalizados, filtrados por CPV y palabras clave; se actualizan cada hora y empiezan hace unos 60 días). Puede haber contratos que la plataforma publique con retraso o sin CPV de este ámbito. Una empresa adjudicataria puede no ser quien contrata personal: comprueba siempre el pliego y la fuente.</p>
+<p class="note" style="margin-top:24px">Prototipo de uso gratuito. Se ofrece tal cual, sin garantía de que los resultados sean completos o exactos. Comprueba siempre la fuente original.</p>
+<p class="note" style="margin-top:8px">Fuente: Contractació pública de Catalunya, datos abiertos (Generalitat de Catalunya, analisi.transparenciacatalunya.cat), conjunto «Contractació pública a Catalunya: publicacions a la Plataforma de serveis de contractació pública». Los datos se piden en directo a la fuente cada vez que buscas. España: Plataforma de Contratación del Sector Público (feeds Atom oficiales, solo adjudicados o formalizados, filtrados por CPV y palabras clave; se actualizan cada hora y empiezan hace unos 60 días). Puede haber contratos que la plataforma publique con retraso o sin CPV de este ámbito. Una empresa adjudicataria puede no ser quien contrata personal: comprueba siempre el pliego y la fuente.</p>
 </main>
 <script>
 const API='https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json';
 const TOPICS={
- arx:{n:'Archivo y gestión documental',cpv:['79131','72512','79995','92512','72268'],kw:['ARXIU','ARCHIV','GESTIÓ DOCUMENTAL','GESTIÓN DOCUMENTAL']},
+ arx:{n:'Archivo y gestión documental',cpv:['79131','72512','92512'],kw:['ARXIU','ARCHIV','ARXIVÍSTIC','ARCHIVÍSTIC','GESTIÓ DOCUMENTAL','GESTIÓN DOCUMENTAL']},
  dig:{n:'Digitalización',cpv:['79999','72314'],kw:['DIGITALITZ','DIGITALIZ','ESCANEIG','ESCANEO']},
  bib:{n:'Bibliotecas y catálogos',cpv:['92511'],kw:['CATALOGACI','GESTIÓ BIBLIOTEC','GESTIÓN BIBLIOTEC','SISTEMA DE GESTIÓ DE BIBLIOTEC','BIBLIOTECARI']},
  mus:{n:'Museos y patrimonio',cpv:['92521','92522','92520','92510'],kw:['PATRIMONI CULTURAL','PATRIMONIO CULTURAL','PATRIMONI DOCUMENTAL','INVENTARI DE']},
